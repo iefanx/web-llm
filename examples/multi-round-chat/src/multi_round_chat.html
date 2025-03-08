@@ -1,16 +1,511 @@
 <!doctype html>
 <html>
-  <script>
-    webLLMGlobal = {};
-  </script>
+  <head>
+    <title>Private Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="./output.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Add marked.js for markdown support -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+      @keyframes bounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-4px); }
+      }
+      
+      /* iOS height fix */
+      html, body {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      /* Custom scrollbar for webkit browsers */
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 10px;
+      }
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #000000;
+        overscroll-behavior: none; /* Prevent bounce effect on iOS */
+      }
+      
+      /* Direct CSS for message bubbles to ensure they work correctly */
+      .message-container {
+        width: 100%;
+        margin: 8px 0;
+        clear: both;
+        overflow: hidden;
+      }
+      
+      .user-message {
+        float: right;
+        background-color: #0a84ff;
+        color: white;
+        border-radius: 18px;
+        border-top-right-radius: 4px;
+        padding: 10px 14px;
+        margin-right: 10px;
+        margin-left: auto;
+        max-width: 75%;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+      }
+      
+      .assistant-message {
+        float: left;
+        background-color: #333333;
+        color: white;
+        border-radius: 18px;
+        border-top-left-radius: 4px;
+        padding: 10px 14px;
+        margin-left: 10px;
+        margin-right: auto;
+        max-width: 75%;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+      }
+      
+      /* Improved markdown styling - for both message types */
+      .message code {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.9em;
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+      
+      .message pre {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+        padding: 8px;
+        overflow-x: auto;
+        margin: 6px 0;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      
+      .message pre code {
+        background-color: transparent;
+        padding: 0;
+        white-space: pre-wrap;
+        width: 100%;
+      }
+      
+      .message p {
+        margin: 0 0 8px 0;
+      }
+      
+      .message p:last-child {
+        margin-bottom: 0;
+      }
+      
+      .message ul, .message ol {
+        padding-left: 20px;
+        margin: 8px 0;
+      }
+      
+      .message a {
+        color: inherit;
+        text-decoration: underline;
+      }
+      
+      .message img {
+        max-width: 100%;
+        border-radius: 4px;
+        margin: 4px 0;
+      }
+      
+      .message table {
+        border-collapse: collapse;
+        margin: 8px 0;
+        font-size: 0.9em;
+        width: 100%;
+      }
+      
+      .message th, .message td {
+        padding: 4px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        text-align: left;
+      }
+      
+      .message blockquote {
+        border-left: 3px solid rgba(255, 255, 255, 0.3);
+        margin: 8px 0;
+        padding-left: 10px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+      
+      /* Status bar transition */
+      #status-bar {
+        transition: opacity 0.5s ease, height 0.5s ease, padding 0.5s ease;
+      }
+      
+      #status-bar.hidden {
+        opacity: 0;
+        height: 0;
+        padding: 0;
+        overflow: hidden;
+        margin: 0;
+      }
+      
+      /* System message */
+      .system-message {
+        text-align: center;
+        background-color: transparent;
+        color: #666;
+        font-style: italic;
+        padding: 6px 10px;
+        font-size: 12px;
+        width: 100%;
+        clear: both;
+      }
+      
+      /* Typing indicator */
+      .typing-indicator {
+        display: flex;
+        padding: 8px;
+        align-items: center;
+        float: left;
+        margin-left: 10px;
+      }
+      
+      .typing-indicator span {
+        height: 8px;
+        width: 8px;
+        background-color: #666;
+        border-radius: 50%;
+        display: inline-block;
+        margin: 0 2px;
+        animation: bounce 1.3s linear infinite;
+      }
+      
+      /* Clear button styling */
+      #clear-button {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        background-color: transparent;
+        border: none;
+        color: #777;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+      }
+      
+      #clear-button:hover {
+        color: #aaa;
+      }
+      
+      /* Fix iOS input padding */
+      @supports (-webkit-touch-callout: none) {
+        #message-input {
+          padding-left: 10px;
+          padding-right: 10px;
+        }
+      }
+      
+      /* Mobile optimization */
+      @media (max-width: 480px) {
+        .user-message, .assistant-message {
+          max-width: 85%;
+          padding: 8px 12px;
+        }
+        
+        #input-container {
+          padding: 8px;
+        }
+        
+        #message-input {
+          padding: 10px;
+        }
+      }
 
-  <body>
-    <h2>WebLLM Test Page</h2>
-    Open console to see output
-    <br />
-    <br />
-    <label id="init-label"> </label>
+      .lazy-load-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+      }
+      .lazy-load-button {
+        padding: 12px 20px;
+        border-radius: 20px;
+        background-color: #0a84ff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
 
-    <script type="module" src="./multi_round_chat.ts"></script>
+      /* Simple spin animation */
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .spinner {
+        animation: spin 1s linear infinite;
+      }
+    </style>
+  </head>
+  <body class="m-0 p-0 bg-black text-gray-100 h-screen flex flex-col">
+    <div class="flex flex-col h-screen w-full p-0 m-0">
+      <div class="py-2 text-center bg-black border-b border-gray-900 relative">
+        <button id="clear-button" title="Clear chat history">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+          </svg>
+        </button>
+        <h2 class="m-0 text-sm font-medium text-gray-400 tracking-wide">Private Chat</h2>
+      </div>
+      <div id="status-bar" class="bg-black py-1 text-xs text-gray-600 text-center">
+        <label id="init-label" class="font-light">Initializing model...</label>
+        <div id="loading-indicator" class="typing-indicator inline-block ml-2">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <div id="chat-container" class="flex-1 overflow-y-auto bg-black p-3 md:p-4 ">
+        <!-- Chat messages will be inserted here dynamically -->
+      </div>
+      <div id="input-container" class="flex bg-black p-3 md:p-4 border-t border-gray-900">
+        <input 
+          type="text" 
+          id="message-input" 
+          placeholder="Type a message..." 
+          class="flex-1 py-3 px-4 border-none rounded-2xl outline-none text-base bg-gray-900 text-gray-200 placeholder-gray-600 shadow-inner"
+        />
+        <button 
+          id="send-button" 
+          disabled
+          class="bg-blue-600 hover:bg-blue-500 text-white border-none rounded-full w-10 h-10 ml-3 flex items-center justify-center
+                 cursor-pointer disabled:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm transition-colors duration-150"
+        >
+          <!-- Hidden by default, shown while loading -->
+          <svg id="loading-icon" class="hidden spinner" width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+          </svg>
+          <!-- Send icon, normally shown unless generating or loading -->
+          <svg id="send-icon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <!-- Stop icon, only shown while generating -->
+          <svg id="stop-icon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <script>
+      // Initialize global object and make functions available to TypeScript
+      window.webLLMGlobal = {
+        isGenerating: false,
+        stopGeneration: false
+      };
+      
+      // Local storage key for chat history
+      const CHAT_STORAGE_KEY = 'private-chat-history';
+      
+      // Function to save chat history to localStorage
+      function saveChatHistory() {
+        const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) return;
+        
+        // Get all message containers
+        const messages = [];
+        chatContainer.querySelectorAll('.message-container').forEach(container => {
+          const messageEl = container.querySelector('.message');
+          if (!messageEl) return;
+          
+          // Determine message type
+          let type = 'system';
+          if (messageEl.classList.contains('user-message')) type = 'user';
+          else if (messageEl.classList.contains('assistant-message')) type = 'assistant';
+          
+          // Store the raw text (before markdown parsing)
+          const content = messageEl.getAttribute('data-raw-content') || messageEl.textContent;
+          
+          messages.push({
+            type,
+            content
+          });
+        });
+        
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+      }
+      
+      // Function to load chat history from localStorage
+      function loadChatHistory() {
+        const chatHistory = localStorage.getItem(CHAT_STORAGE_KEY);
+        if (!chatHistory) return false;
+        
+        try {
+          const messages = JSON.parse(chatHistory);
+          const chatContainer = document.getElementById('chat-container');
+          
+          // Clear existing messages
+          chatContainer.innerHTML = '';
+          
+          // Add messages from history
+          messages.forEach(msg => {
+            addMessageToChat(msg.type, msg.content);
+          });
+          
+          // Scroll to bottom
+          scrollChatToBottom();
+          
+          // If we have messages, hide the status bar
+          if (messages.length > 0) {
+            hideStatusBar();
+          }
+          
+          return messages.length > 0;
+        } catch (error) {
+          console.error('Error loading chat history:', error);
+          return false;
+        }
+      }
+      
+      // Function to clear chat history
+      function clearChatHistory() {
+        localStorage.removeItem(CHAT_STORAGE_KEY);
+        document.getElementById('chat-container').innerHTML = '';
+      }
+      
+      // Function to hide status bar
+      function hideStatusBar() {
+        const statusBar = document.getElementById('status-bar');
+        if (statusBar) {
+          statusBar.classList.add('hidden');
+        }
+      }
+      
+      // Toggle send/stop button
+      function toggleSendStopButton(isGenerating) {
+        const sendButton = document.getElementById('send-button');
+        const sendIcon = document.getElementById('send-icon');
+        const stopIcon = document.getElementById('stop-icon');
+        const loadingIcon = document.getElementById('loading-icon');
+        
+        window.webLLMGlobal.isGenerating = isGenerating;
+        
+        if (isGenerating) {
+          sendIcon.classList.add('hidden');
+          stopIcon.classList.remove('hidden');
+          sendButton.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+          sendButton.classList.add('bg-red-600', 'hover:bg-red-600');
+          sendButton.title = "Stop generation";
+        } else {
+          sendIcon.classList.remove('hidden');
+          stopIcon.classList.add('hidden');
+          sendButton.classList.remove('bg-red-600', 'hover:bg-red-600');
+          sendButton.classList.add('bg-blue-600', 'hover:bg-blue-500');
+          sendButton.title = "Send message";
+        }
+      }
+      
+      // Function to add a message to the chat with markdown support
+      function addMessageToChat(type, text) {
+        const chatContainer = document.getElementById('chat-container');
+        const messageContainer = document.createElement('div');
+        messageContainer.className = 'message-container';
+        
+        const message = document.createElement('div');
+        message.className = `message ${type}-message`;
+        
+        // Store raw content for saving to localStorage
+        message.setAttribute('data-raw-content', text);
+        
+        // Configure marked for better code rendering
+        marked.setOptions({
+          gfm: true,
+          breaks: true,
+          sanitize: false,
+          smartLists: true,
+          smartypants: true
+        });
+        
+        // Parse markdown
+        try {
+          message.innerHTML = marked.parse(text);
+        } catch (e) {
+          console.error("Markdown parsing error:", e);
+          message.textContent = text; // Fallback to plain text
+        }
+        
+        messageContainer.appendChild(message);
+        chatContainer.appendChild(messageContainer);
+        
+        // Save to localStorage
+        saveChatHistory();
+        
+        // Scroll to bottom
+        scrollChatToBottom();
+        
+        // Hide status bar after first message
+        hideStatusBar();
+        
+        return message;
+      }
+      
+      // Function to scroll chat to bottom when new messages come in
+      function scrollChatToBottom() {
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+      }
+      
+      // Initialize the app when DOM is loaded
+      document.addEventListener('DOMContentLoaded', function() {
+        const chatContainer = document.getElementById('chat-container');
+        const clearButton = document.getElementById('clear-button');
+        const sendButton = document.getElementById('send-button');
+        
+        // Load chat history, returns true if messages were loaded
+        const historyLoaded = loadChatHistory();
+        
+        // Setup clear button
+        clearButton.addEventListener('click', function() {
+          if (confirm('Are you sure you want to clear the chat history?')) {
+            clearChatHistory();
+          }
+        });
+        
+        // Setup send/stop button toggling
+        sendButton.addEventListener('click', function() {
+          if (window.webLLMGlobal.isGenerating) {
+            window.webLLMGlobal.stopGeneration = true;
+          }
+        });
+        
+        // Create an observer to watch for new messages and scroll to bottom
+        const observer = new MutationObserver(scrollChatToBottom);
+        observer.observe(chatContainer, { childList: true, subtree: true });
+        
+        // Fix iOS 100vh issue
+        function setAppHeight() {
+          const doc = document.documentElement;
+          doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+        }
+        window.addEventListener('resize', setAppHeight);
+        setAppHeight();
+        
+        // Extend the existing WebLLMGlobal with our functions so they can be used by the TS code
+        window.webLLMGlobal.addMessageToChat = addMessageToChat;
+        window.webLLMGlobal.saveChatHistory = saveChatHistory;
+        window.webLLMGlobal.hideStatusBar = hideStatusBar;
+        window.webLLMGlobal.toggleSendStopButton = toggleSendStopButton;
+      });
+    </script>
+    <script type="module" src="./multi_round_chat.ts" defer></script>
   </body>
 </html>

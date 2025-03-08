@@ -326,3 +326,4 @@ lib
 
 examples/tests
 **/.next
+.vercel

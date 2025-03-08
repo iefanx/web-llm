@@ -17,7 +17,7 @@ async function mainNonStreaming() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+  const selectedModel = "Llama-3.2-1B-Instruct-q0f16-MLC";
 
   const engine: webllm.MLCEngineInterface =
     await webllm.CreateWebWorkerMLCEngine(
@@ -36,7 +36,11 @@ async function mainNonStreaming() {
       },
       { role: "user", content: "Provide me three US states." },
       { role: "assistant", content: "California, New York, Pennsylvania." },
-      { role: "user", content: "Two more please!" },
+      {
+        role: "user",
+        content:
+          " What can you do exactly? Can you tell me in detail as much detail as possible?",
+      },
     ],
     n: 3,
     temperature: 1.5,
@@ -56,7 +60,7 @@ async function mainStreaming() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+  const selectedModel = "Llama-3.2-1B-Instruct-q0f16-MLC";
 
   const engine: webllm.MLCEngineInterface =
     await webllm.CreateWebWorkerMLCEngine(
