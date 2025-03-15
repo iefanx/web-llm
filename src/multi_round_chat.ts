@@ -185,7 +185,7 @@ async function main() {
     setLabel("init-label", report.text);
   };
 
-  const selectedModel = "Phi-3-mini-4k-instruct-q4f16_1-MLC";
+  const selectedModel = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
 
   setLabel("init-label", `Loading model...`);
 
